@@ -261,11 +261,25 @@
     <script>
         const API_BASE = globalThis.location.origin;
 
+        async function fetchJsonOrThrow(url) {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errText || 'Request failed'}`);
+            }
+
+            return response.json();
+        }
+
+        function renderError(id, label, error) {
+            document.getElementById(id).innerHTML = `<div class="error">${label}: ${error.message}</div>`;
+        }
+
         // Fetch and display costs
         async function fetchCosts() {
             try {
-                const response = await fetch(`${API_BASE}/cost`);
-                const data = await response.json();
+                const data = await fetchJsonOrThrow(`${API_BASE}/cost`);
 
                 let html = '<div class="cost-grid">';
                 html += `<div class="cost-item"><div class="cost-item-label">EC2</div><div class="cost-item-value">${data.EC2}</div></div>`;
@@ -277,15 +291,14 @@
                 document.getElementById('costs-content').innerHTML = html;
             } catch (error) {
                 console.error('Error fetching costs:', error);
-                document.getElementById('costs-content').innerHTML = `<div class="error">Error loading costs</div>`;
+                renderError('costs-content', 'Error loading costs', error);
             }
         }
 
         // Fetch and display EC2 instances
         async function fetchEC2Instances() {
             try {
-                const response = await fetch(`${API_BASE}/ec2`);
-                const data = await response.json();
+                const data = await fetchJsonOrThrow(`${API_BASE}/ec2`);
 
                 document.getElementById('ec2-count').textContent = data.TotalCount;
 
@@ -313,15 +326,14 @@
                 document.getElementById('ec2-details').innerHTML = html;
             } catch (error) {
                 console.error('Error fetching EC2 instances:', error);
-                document.getElementById('ec2-details').innerHTML = `<div class="error">Error loading EC2 instances</div>`;
+                renderError('ec2-details', 'Error loading EC2 instances', error);
             }
         }
 
         // Fetch and display security details
         async function fetchSecurityDetails() {
             try {
-                const response = await fetch(`${API_BASE}/security-details`);
-                const data = await response.json();
+                const data = await fetchJsonOrThrow(`${API_BASE}/security-details`);
 
                 // Update security card
                 let securityHtml = `
@@ -377,9 +389,9 @@
                 document.getElementById('keypairs-details').innerHTML = kpHtml;
             } catch (error) {
                 console.error('Error fetching security details:', error);
-                document.getElementById('security-content').innerHTML = `<div class="error">Error loading security details</div>`;
-                document.getElementById('security-groups-details').innerHTML = `<div class="error">Error loading security groups</div>`;
-                document.getElementById('keypairs-details').innerHTML = `<div class="error">Error loading key pairs</div>`;
+                renderError('security-content', 'Error loading security details', error);
+                renderError('security-groups-details', 'Error loading security groups', error);
+                renderError('keypairs-details', 'Error loading key pairs', error);
             }
         }
 
