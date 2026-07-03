@@ -1,13 +1,12 @@
-package main
+package handler
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/user/cost-optimizer/internal/api"
 )
 
-// CORS middleware to allow frontend requests
+// corsMiddleware allows browser clients to call API routes from the hosted UI.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -23,23 +22,14 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// main handles local testing execution instances.
-func main() {
+// Handler is invoked by Vercel for API routes mapped to api/index.go.
+func Handler(w http.ResponseWriter, r *http.Request) {
 	mux := http.NewServeMux()
-
-	// API endpoints
 	mux.HandleFunc("/cost", api.GetCostHandler)
 	mux.HandleFunc("/ec2", api.GetEC2InstancesHandler)
 	mux.HandleFunc("/services", api.GetAllServicesHandler)
 	mux.HandleFunc("/security", api.GetSecurityHandler)
 	mux.HandleFunc("/security-details", api.GetSecurityDetailsHandler)
 
-	// Serve static files
-	mux.Handle("/", http.FileServer(http.Dir("./web")))
-
-	// Apply CORS middleware layers
-	handler := corsMiddleware(mux)
-
-	log.Println("Server running locally on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", handler))
+	corsMiddleware(mux).ServeHTTP(w, r)
 }

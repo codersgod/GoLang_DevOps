@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "cmd/main.go",
+      "src": "api/index.go",
       "use": "@vercel/go"
     }
   ],
@@ -13,11 +13,11 @@
     },
     {
       "src": "^/(cost|ec2|services|security|security-details)$",
-      "dest": "cmd/main.go"
+      "dest": "api/index.go"
     },
     {
       "src": "/(.*)",
-      "dest": "cmd/main.go"
+      "dest": "/web/index.html"
     }
   ]
 }

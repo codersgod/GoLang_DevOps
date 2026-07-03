@@ -26,6 +26,8 @@ A lightweight Go application that reads AWS cost and infrastructure data and sho
 .
 ├── cmd/
 │   └── main.go
+├── api/
+│   └── index.go
 ├── internal/
 │   ├── api/
 │   │   └── handler.go
@@ -150,7 +152,7 @@ git push -u origin main
 
 - Create New Project
 - Import your GitHub repository
-- Keep root as project root (where `vercel.json` is present)
+- Leave Root Directory blank (repo root, where `vercel.json` is present)
 - Build settings can remain default for this configuration
 
 4. In Vercel Project Settings -> Environment Variables, add:
