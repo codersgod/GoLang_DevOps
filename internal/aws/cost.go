@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
@@ -18,7 +19,37 @@ const (
 	dateLayout          = "2006-01-02"
 	errLoadAWSConfigFmt = "unable to load AWS config: %w"
 	errFetchRegionsFmt  = "failed to fetch regions: %w"
+	errNoRegionConfigured = "no AWS region configured and DescribeRegions is unavailable"
 )
+
+func resolveTargetRegions(cfg aws.Config) ([]string, error) {
+	ec2Client := ec2.NewFromConfig(cfg)
+	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	if err != nil {
+		// Some roles cannot call DescribeRegions. Fall back to the configured default region.
+		if cfg.Region != "" {
+			return []string{cfg.Region}, nil
+		}
+		return nil, fmt.Errorf(errFetchRegionsFmt, err)
+	}
+
+	regionNames := make([]string, 0, len(regions.Regions))
+	for _, region := range regions.Regions {
+		if region.RegionName == nil {
+			continue
+		}
+		regionNames = append(regionNames, *region.RegionName)
+	}
+
+	if len(regionNames) == 0 {
+		if cfg.Region != "" {
+			return []string{cfg.Region}, nil
+		}
+		return nil, fmt.Errorf(errNoRegionConfigured)
+	}
+
+	return regionNames, nil
+}
 
 // FetchCost returns total cost + service-wise breakdown
 func FetchCost() (map[string]string, error) {
@@ -310,25 +341,18 @@ func FetchSecurityGroupsCount() (int, error) {
 		return 0, fmt.Errorf(errLoadAWSConfigFmt, err)
 	}
 
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Get all regions
-	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	regionNames, err := resolveTargetRegions(cfg)
 	if err != nil {
-		return 0, fmt.Errorf(errFetchRegionsFmt, err)
+		return 0, err
 	}
 
 	totalSecurityGroups := 0
 
 	// Check security groups in each region
-	for _, region := range regions.Regions {
-		if region.RegionName == nil {
-			continue
-		}
-
+	for _, regionName := range regionNames {
 		// Create client for this region
 		regionCfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-			o.Region = *region.RegionName
+			o.Region = regionName
 			return nil
 		})
 		if err != nil {
@@ -355,25 +379,18 @@ func FetchKeyPairsCount() (int, error) {
 		return 0, fmt.Errorf(errLoadAWSConfigFmt, err)
 	}
 
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Get all regions
-	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	regionNames, err := resolveTargetRegions(cfg)
 	if err != nil {
-		return 0, fmt.Errorf(errFetchRegionsFmt, err)
+		return 0, err
 	}
 
 	totalKeyPairs := 0
 
 	// Check key pairs in each region
-	for _, region := range regions.Regions {
-		if region.RegionName == nil {
-			continue
-		}
-
+	for _, regionName := range regionNames {
 		// Create client for this region
 		regionCfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-			o.Region = *region.RegionName
+			o.Region = regionName
 			return nil
 		})
 		if err != nil {
@@ -414,25 +431,18 @@ func FetchSecurityGroupsDetails() ([]SecurityGroupDetail, error) {
 		return nil, fmt.Errorf(errLoadAWSConfigFmt, err)
 	}
 
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Get all regions
-	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	regionNames, err := resolveTargetRegions(cfg)
 	if err != nil {
-		return nil, fmt.Errorf(errFetchRegionsFmt, err)
+		return nil, err
 	}
 
 	var allSGs []SecurityGroupDetail
 
 	// Check security groups in each region
-	for _, region := range regions.Regions {
-		if region.RegionName == nil {
-			continue
-		}
-
+	for _, regionName := range regionNames {
 		// Create client for this region
 		regionCfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-			o.Region = *region.RegionName
+			o.Region = regionName
 			return nil
 		})
 		if err != nil {
@@ -459,7 +469,7 @@ func FetchSecurityGroupsDetails() ([]SecurityGroupDetail, error) {
 			detail := SecurityGroupDetail{
 				GroupID:     groupID,
 				GroupName:   groupName,
-				Region:      *region.RegionName,
+				Region:      regionName,
 				Description: "",
 			}
 			if sg.Description != nil {
@@ -479,25 +489,18 @@ func FetchKeyPairsDetails() ([]KeyPairDetail, error) {
 		return nil, fmt.Errorf(errLoadAWSConfigFmt, err)
 	}
 
-	ec2Client := ec2.NewFromConfig(cfg)
-
-	// Get all regions
-	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
+	regionNames, err := resolveTargetRegions(cfg)
 	if err != nil {
-		return nil, fmt.Errorf(errFetchRegionsFmt, err)
+		return nil, err
 	}
 
 	var allKPs []KeyPairDetail
 
 	// Check key pairs in each region
-	for _, region := range regions.Regions {
-		if region.RegionName == nil {
-			continue
-		}
-
+	for _, regionName := range regionNames {
 		// Create client for this region
 		regionCfg, err := config.LoadDefaultConfig(context.TODO(), func(o *config.LoadOptions) error {
-			o.Region = *region.RegionName
+			o.Region = regionName
 			return nil
 		})
 		if err != nil {
@@ -518,7 +521,7 @@ func FetchKeyPairsDetails() ([]KeyPairDetail, error) {
 			}
 			detail := KeyPairDetail{
 				KeyName: keyName,
-				Region:  *region.RegionName,
+				Region:  regionName,
 			}
 			allKPs = append(allKPs, detail)
 		}
