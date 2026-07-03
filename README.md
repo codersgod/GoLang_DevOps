@@ -28,6 +28,8 @@ A lightweight Go application that reads AWS cost and infrastructure data and sho
 │   └── main.go
 ├── api/
 │   └── index.go
+├── app/
+│   └── server.go
 ├── internal/
 │   ├── api/
 │   │   └── handler.go
