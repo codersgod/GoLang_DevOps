@@ -261,6 +261,9 @@ func FetchEC2InstancesWithCPU() ([]EC2InstanceDetail, int, error) {
 	// Describe all EC2 instances
 	result, err := ec2Client.DescribeInstances(context.TODO(), &ec2.DescribeInstancesInput{})
 	if err != nil {
+		if isAccessDeniedError(err) {
+			return []EC2InstanceDetail{}, 0, nil
+		}
 		return nil, 0, fmt.Errorf("failed to fetch EC2 instances: %w", err)
 	}
 
