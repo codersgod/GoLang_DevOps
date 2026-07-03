@@ -22,6 +22,17 @@ const (
 	errNoRegionConfigured = "no AWS region configured and DescribeRegions is unavailable"
 )
 
+func isAccessDeniedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "accessdenied") ||
+		strings.Contains(errMsg, "access denied") ||
+		strings.Contains(errMsg, "not authorized") ||
+		strings.Contains(errMsg, "unauthorizedoperation")
+}
+
 func resolveTargetRegions(cfg aws.Config) ([]string, error) {
 	ec2Client := ec2.NewFromConfig(cfg)
 	regions, err := ec2Client.DescribeRegions(context.TODO(), &ec2.DescribeRegionsInput{})
@@ -89,6 +100,14 @@ func FetchCost() (map[string]string, error) {
 
 	result, err := client.GetCostAndUsage(context.TODO(), input)
 	if err != nil {
+		if isAccessDeniedError(err) {
+			return map[string]string{
+				"EC2":    "N/A",
+				"S3":     "N/A",
+				"Lambda": "N/A",
+				"TOTAL":  "N/A",
+			}, nil
+		}
 		return nil, fmt.Errorf("failed to fetch cost data: %w", err)
 	}
 
