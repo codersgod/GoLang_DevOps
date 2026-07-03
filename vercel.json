@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "cmd/main.go",
+      "use": "@vercel/go"
+    }
+  ],
+  "routes": [
+    {
+      "src": "^/$",
+      "dest": "/web/index.html"
+    },
+    {
+      "src": "^/(cost|ec2|services|security|security-details)$",
+      "dest": "cmd/main.go"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "cmd/main.go"
+    }
+  ]
+}
